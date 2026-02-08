@@ -235,4 +235,75 @@ mod tests {
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].event_type(), "oncall.changed");
     }
+
+    #[tokio::test]
+    async fn add_override_invalid_period_fails() {
+        use rouse_core::error::DomainError;
+
+        let svc = make_service();
+        let users = make_users(1);
+        let schedule = make_schedule(users);
+        let schedule_id = schedule.id().clone();
+
+        svc.create_schedule(schedule).await.unwrap();
+
+        let ovr = ScheduleOverride::new(
+            UserId::new(),
+            ts("2025-01-15T10:00:00Z"),
+            ts("2025-01-15T09:00:00Z"), // end before start
+        );
+
+        let result = svc
+            .add_override(&schedule_id.to_string(), ovr, ts("2025-01-14T00:00:00Z"))
+            .await;
+        assert!(matches!(
+            result,
+            Err(AppError::Domain(DomainError::InvalidOverridePeriod))
+        ));
+    }
+
+    #[tokio::test]
+    async fn remove_override_persists_and_publishes() {
+        let svc = make_service();
+        let users = make_users(1);
+        let schedule = make_schedule(users);
+        let schedule_id = schedule.id().clone();
+
+        svc.create_schedule(schedule).await.unwrap();
+
+        let ovr = ScheduleOverride::new(
+            UserId::new(),
+            ts("2025-01-14T00:00:00Z"),
+            ts("2025-01-16T00:00:00Z"),
+        );
+        let ovr_id = ovr.id().clone();
+
+        svc.add_override(&schedule_id.to_string(), ovr, ts("2025-01-13T00:00:00Z"))
+            .await
+            .unwrap();
+
+        svc.remove_override(
+            &schedule_id.to_string(),
+            &ovr_id.to_string(),
+            ts("2025-01-14T10:00:00Z"),
+        )
+        .await
+        .unwrap();
+
+        // Verify two OnCallChanged events: one for add, one for remove
+        let events = svc.events.events.lock().unwrap();
+        assert_eq!(events.len(), 2);
+        assert!(events.iter().all(|e| e.event_type() == "oncall.changed"));
+    }
+
+    #[tokio::test]
+    async fn who_is_on_call_nonexistent_schedule_fails() {
+        use rouse_ports::error::PortError;
+
+        let svc = make_service();
+        let result = svc
+            .who_is_on_call("nonexistent-id", ts("2025-01-15T10:00:00Z"))
+            .await;
+        assert!(matches!(result, Err(AppError::Port(PortError::NotFound))));
+    }
 }

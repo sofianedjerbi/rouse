@@ -4,57 +4,33 @@ use rouse_core::alert::{Alert, Fingerprint, Severity, Source};
 use rouse_core::events::{AlertDeduplicated, DomainEvent};
 use rouse_core::ids::{AlertId, UserId};
 use rouse_ports::error::PortError;
-use rouse_ports::outbound::{
-    AlertRepository, EscalationQueue, EscalationRepository, EventPublisher, NotificationQueue,
-    ScheduleRepository,
-};
+use rouse_ports::outbound::{AlertRepository, EscalationQueue, EventPublisher};
 use rouse_ports::types::RawAlert;
 
 use crate::error::AppError;
 use crate::router::AlertRouter;
 
-#[allow(dead_code)] // schedules, escalations, notification_queue used in upcoming services
-pub struct AlertService<A, S, E, NQ, EQ, EP>
+pub struct AlertService<A, EQ, EP>
 where
     A: AlertRepository,
-    S: ScheduleRepository,
-    E: EscalationRepository,
-    NQ: NotificationQueue,
     EQ: EscalationQueue,
     EP: EventPublisher,
 {
     alerts: A,
-    schedules: S,
-    escalations: E,
-    notification_queue: NQ,
     escalation_queue: EQ,
     events: EP,
     router: AlertRouter,
 }
 
-impl<A, S, E, NQ, EQ, EP> AlertService<A, S, E, NQ, EQ, EP>
+impl<A, EQ, EP> AlertService<A, EQ, EP>
 where
     A: AlertRepository,
-    S: ScheduleRepository,
-    E: EscalationRepository,
-    NQ: NotificationQueue,
     EQ: EscalationQueue,
     EP: EventPublisher,
 {
-    pub fn new(
-        alerts: A,
-        schedules: S,
-        escalations: E,
-        notification_queue: NQ,
-        escalation_queue: EQ,
-        events: EP,
-        router: AlertRouter,
-    ) -> Self {
+    pub fn new(alerts: A, escalation_queue: EQ, events: EP, router: AlertRouter) -> Self {
         Self {
             alerts,
-            schedules,
-            escalations,
-            notification_queue,
             escalation_queue,
             events,
             router,
@@ -153,6 +129,7 @@ where
             return Ok(());
         }
 
+        // TODO: wrap cancel+save+publish in a transaction once adapter supports it
         self.escalation_queue
             .cancel_for_alert(&alert_id.to_string())
             .await?;
@@ -196,9 +173,7 @@ mod tests {
     use async_trait::async_trait;
     use rouse_core::alert::{Alert, Status};
     use rouse_core::error::DomainError;
-    use rouse_core::escalation::EscalationPolicy;
     use rouse_core::events::DomainEvent;
-    use rouse_core::schedule::Schedule;
     use rouse_ports::error::PortError;
     use rouse_ports::types::*;
     use std::collections::BTreeMap;
@@ -239,74 +214,13 @@ mod tests {
     }
 
     #[derive(Default)]
-    struct MockScheduleRepo;
-
-    #[async_trait]
-    impl ScheduleRepository for MockScheduleRepo {
-        async fn save(&self, _s: &Schedule) -> Result<(), PortError> {
-            Ok(())
-        }
-        async fn find_by_id(&self, _id: &str) -> Result<Option<Schedule>, PortError> {
-            Ok(None)
-        }
-        async fn list_all(&self) -> Result<Vec<Schedule>, PortError> {
-            Ok(vec![])
-        }
-    }
-
-    #[derive(Default)]
-    struct MockEscalationRepo;
-
-    #[async_trait]
-    impl EscalationRepository for MockEscalationRepo {
-        async fn save(&self, _p: &EscalationPolicy) -> Result<(), PortError> {
-            Ok(())
-        }
-        async fn find_by_id(&self, _id: &str) -> Result<Option<EscalationPolicy>, PortError> {
-            Ok(None)
-        }
-    }
-
-    #[derive(Default)]
-    struct MockNotificationQueue {
-        items: Mutex<Vec<PendingNotification>>,
-    }
-
-    #[async_trait]
-    impl NotificationQueue for MockNotificationQueue {
-        async fn enqueue(&self, n: PendingNotification) -> Result<(), PortError> {
-            self.items.lock().unwrap().push(n);
-            Ok(())
-        }
-        async fn poll_pending(&self) -> Result<Vec<PendingNotification>, PortError> {
-            Ok(vec![])
-        }
-        async fn mark_sent(&self, _id: &str) -> Result<(), PortError> {
-            Ok(())
-        }
-        async fn mark_failed(
-            &self,
-            _id: &str,
-            _error: &str,
-            _next: DateTime<Utc>,
-        ) -> Result<(), PortError> {
-            Ok(())
-        }
-        async fn mark_dead(&self, _id: &str) -> Result<(), PortError> {
-            Ok(())
-        }
-    }
-
-    #[derive(Default)]
     struct MockEscalationQueue {
-        items: Mutex<Vec<PendingEscalation>>,
         cancelled: Mutex<Vec<String>>,
     }
 
     #[async_trait]
     impl EscalationQueue for MockEscalationQueue {
-        async fn enqueue_step(&self, step: PendingEscalation) -> Result<(), PortError> {
-            self.items.lock().unwrap().push(step);
+        async fn enqueue_step(&self, _step: PendingEscalation) -> Result<(), PortError> {
             Ok(())
         }
         async fn poll_due(&self) -> Result<Vec<PendingEscalation>, PortError> {
@@ -351,19 +265,9 @@ mod tests {
         }
     }
 
-    fn make_service() -> AlertService<
-        MockAlertRepo,
-        MockScheduleRepo,
-        MockEscalationRepo,
-        MockNotificationQueue,
-        MockEscalationQueue,
-        MockEventPublisher,
-    > {
+    fn make_service() -> AlertService<MockAlertRepo, MockEscalationQueue, MockEventPublisher> {
         AlertService::new(
             MockAlertRepo::default(),
-            MockScheduleRepo::default(),
-            MockEscalationRepo::default(),
-            MockNotificationQueue::default(),
             MockEscalationQueue::default(),
             MockEventPublisher::default(),
             AlertRouter::new(vec![]),
@@ -412,9 +316,6 @@ mod tests {
 
         let svc = AlertService::new(
             MockAlertRepo::default(),
-            MockScheduleRepo::default(),
-            MockEscalationRepo::default(),
-            MockNotificationQueue::default(),
             MockEscalationQueue::default(),
             MockEventPublisher::default(),
             AlertRouter::new(vec![Route {
@@ -428,6 +329,16 @@ mod tests {
 
         let alerts = svc.alerts.alerts.lock().unwrap();
         assert_eq!(alerts.len(), 1); // alert still saved
+    }
+
+    #[tokio::test]
+    async fn receive_resolved_unknown_fingerprint_returns_not_found() {
+        let svc = make_service();
+        let mut raw = make_raw_alert("api");
+        raw.status = "resolved".into();
+
+        let result = svc.receive(raw, now()).await;
+        assert!(matches!(result, Err(AppError::Port(PortError::NotFound))));
     }
 
     #[tokio::test]
@@ -450,6 +361,28 @@ mod tests {
         assert!(events
             .iter()
             .any(|e| e.event_type() == "alert.acknowledged"));
+    }
+
+    #[tokio::test]
+    async fn acknowledge_already_acknowledged_is_noop() {
+        let svc = make_service();
+        let raw = make_raw_alert("api");
+        let alert_id = svc.receive(raw, now()).await.unwrap();
+
+        let user_id = UserId::new();
+        svc.acknowledge(&alert_id, user_id.clone(), now())
+            .await
+            .unwrap();
+
+        let events_before = svc.events.events.lock().unwrap().len();
+        let cancelled_before = svc.escalation_queue.cancelled.lock().unwrap().len();
+
+        svc.acknowledge(&alert_id, user_id, now()).await.unwrap();
+
+        let events_after = svc.events.events.lock().unwrap().len();
+        let cancelled_after = svc.escalation_queue.cancelled.lock().unwrap().len();
+        assert_eq!(events_before, events_after);
+        assert_eq!(cancelled_before, cancelled_after);
     }
 
     #[tokio::test]

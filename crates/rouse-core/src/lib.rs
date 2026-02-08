@@ -5,3 +5,4 @@ pub mod escalation;
 pub mod events;
 pub mod ids;
 pub mod schedule;
+pub mod user;

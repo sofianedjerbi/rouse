@@ -18,4 +18,6 @@ pub enum DomainError {
     StepRequiresTarget,
     #[error("step requires a channel")]
     StepRequiresChannel,
+    #[error("team requires at least one member")]
+    TeamRequiresMember,
 }

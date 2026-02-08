@@ -6,3 +6,9 @@ edition = "2021"
 [dependencies]
 rouse-core = { path = "../rouse-core" }
 rouse-ports = { path = "../rouse-ports" }
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "2"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+async-trait = "0.1"

@@ -1,0 +1,9 @@
+[package]
+name = "rouse-adapters"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rouse-core = { path = "../rouse-core" }
+rouse-ports = { path = "../rouse-ports" }
+async-trait = "0.1"

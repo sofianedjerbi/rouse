@@ -1,0 +1,10 @@
+[package]
+name = "rouse-server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rouse-core = { path = "../rouse-core" }
+rouse-ports = { path = "../rouse-ports" }
+rouse-app = { path = "../rouse-app" }
+rouse-adapters = { path = "../rouse-adapters" }

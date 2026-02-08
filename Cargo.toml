@@ -1,0 +1,9 @@
+[workspace]
+members = [
+    "crates/rouse-core",
+    "crates/rouse-ports",
+    "crates/rouse-app",
+    "crates/rouse-adapters",
+    "crates/rouse-server",
+]
+resolver = "2"

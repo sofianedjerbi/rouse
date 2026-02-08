@@ -2,13 +2,14 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 
 use crate::alert::severity::Severity;
-use crate::ids::{AlertId, UserId};
+use crate::ids::{AlertId, ScheduleId, UserId};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum DomainEvent {
     AlertReceived(AlertReceived),
     AlertAcknowledged(AlertAcknowledged),
     AlertResolved(AlertResolved),
+    OnCallChanged(OnCallChanged),
 }
 
 impl DomainEvent {
@@ -17,6 +18,7 @@ impl DomainEvent {
             Self::AlertReceived(e) => e.occurred_at,
             Self::AlertAcknowledged(e) => e.occurred_at,
             Self::AlertResolved(e) => e.occurred_at,
+            Self::OnCallChanged(e) => e.occurred_at,
         }
     }
 
@@ -25,6 +27,7 @@ impl DomainEvent {
             Self::AlertReceived(_) => "alert.received",
             Self::AlertAcknowledged(_) => "alert.acknowledged",
             Self::AlertResolved(_) => "alert.resolved",
+            Self::OnCallChanged(_) => "oncall.changed",
         }
     }
 }
@@ -48,5 +51,13 @@ pub struct AlertAcknowledged {
 pub struct AlertResolved {
     pub alert_id: AlertId,
     pub resolved_by: String,
+    pub occurred_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct OnCallChanged {
+    pub schedule_id: ScheduleId,
+    pub new_user: UserId,
+    pub previous_user: Option<UserId>,
     pub occurred_at: DateTime<Utc>,
 }

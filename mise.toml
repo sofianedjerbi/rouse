@@ -2,9 +2,6 @@
 rust = "1.84"
 node = "22"
 
-[tools.cargo-binstall]
-version = "latest"
-
 [env]
 RUST_BACKTRACE = "1"
 ROUSE_DATABASE_URL = "sqlite://rouse.db"
@@ -17,3 +14,11 @@ run = "cargo clippy --workspace -- -D warnings && cargo fmt --check"
 
 [tasks.dev]
 run = "cargo watch -x 'run -- serve'"
+
+[tasks.pre-commit]
+description = "Run all checks before committing"
+run = """
+cargo fmt --check
+cargo clippy --workspace -- -D warnings
+cargo test --workspace
+"""

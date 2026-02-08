@@ -6,6 +6,7 @@ Open-source on-call management. Rust backend, SvelteKit frontend, hexagonal arch
 
 - **Every feature = GitHub issue first.** `gh issue create` before writing code.
 - **Conventional commits.** `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`.
+- **Ticket number in commit title.** `feat(#12): add alert aggregate`.
 - **Small commits.** One concern per commit. Short description, no body needed.
 - **TDD.** Write failing test → make it pass → refactor. No production code without a test.
 - **Run checks before committing.** `cargo test && cargo clippy -- -D warnings && cargo fmt --check`

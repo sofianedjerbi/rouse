@@ -1,6 +1,7 @@
 pub mod fingerprint;
 pub mod group;
 pub mod grouping;
+pub mod noise;
 pub mod severity;
 pub mod source;
 pub mod status;

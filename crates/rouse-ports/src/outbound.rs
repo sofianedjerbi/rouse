@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 
 use rouse_core::alert::group::AlertGroup;
+use rouse_core::alert::noise::NoiseScore;
 use rouse_core::alert::Alert;
 use rouse_core::channel::Channel;
 use rouse_core::escalation::EscalationPolicy;
@@ -73,6 +74,13 @@ pub trait EventPublisher: Send + Sync {
 pub trait AlertGroupRepository: Send + Sync {
     async fn save(&self, group: &AlertGroup) -> Result<(), PortError>;
     async fn find_active_by_key(&self, key: &str) -> Result<Option<AlertGroup>, PortError>;
+}
+
+#[async_trait]
+pub trait NoiseRepository: Send + Sync {
+    async fn get_or_create(&self, fingerprint: &str) -> Result<NoiseScore, PortError>;
+    async fn save(&self, score: &NoiseScore) -> Result<(), PortError>;
+    async fn get_noisiest(&self, min_fires: u64) -> Result<Vec<NoiseScore>, PortError>;
 }
 
 pub trait AlertSourceParser: Send + Sync {

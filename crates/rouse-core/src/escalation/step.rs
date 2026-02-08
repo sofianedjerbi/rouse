@@ -43,3 +43,33 @@ impl EscalationStep {
         &self.channels
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ids::UserId;
+
+    #[test]
+    fn step_preserves_order_and_wait() {
+        let step = EscalationStep::new(
+            2,
+            300,
+            vec![EscalationTarget::User(UserId::new())],
+            vec![Channel::Slack],
+        );
+        assert_eq!(step.order(), 2);
+        assert_eq!(step.wait_seconds(), 300);
+    }
+
+    #[test]
+    fn step_preserves_targets_and_channels() {
+        let step = EscalationStep::new(
+            0,
+            0,
+            vec![EscalationTarget::User(UserId::new())],
+            vec![Channel::Slack, Channel::Sms],
+        );
+        assert_eq!(step.targets().len(), 1);
+        assert_eq!(step.channels().len(), 2);
+    }
+}

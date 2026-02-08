@@ -340,4 +340,50 @@ mod tests {
         let result = sched.add_override(ovr, ts("2025-01-14T00:00:00Z"));
         assert_eq!(result, Err(DomainError::InvalidOverridePeriod));
     }
+
+    #[test]
+    fn remove_override_returns_event() {
+        let users = make_users(1);
+        let mut sched = Schedule::new(
+            "test".into(),
+            zurich(),
+            Rotation::Weekly,
+            users,
+            handoff_monday_9(),
+        )
+        .unwrap();
+
+        let ovr = ScheduleOverride::new(
+            UserId::new(),
+            ts("2025-01-14T00:00:00Z"),
+            ts("2025-01-16T00:00:00Z"),
+        );
+        let ovr_id = ovr.id().clone();
+        sched.add_override(ovr, ts("2025-01-13T00:00:00Z")).unwrap();
+
+        let events = sched
+            .remove_override(&ovr_id, ts("2025-01-14T10:00:00Z"))
+            .unwrap();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].event_type(), "oncall.changed");
+    }
+
+    #[test]
+    fn remove_nonexistent_override_is_noop() {
+        let users = make_users(1);
+        let mut sched = Schedule::new(
+            "test".into(),
+            zurich(),
+            Rotation::Weekly,
+            users,
+            handoff_monday_9(),
+        )
+        .unwrap();
+
+        let fake_id = OverrideId::new();
+        let events = sched
+            .remove_override(&fake_id, ts("2025-01-14T10:00:00Z"))
+            .unwrap();
+        assert!(events.is_empty());
+    }
 }

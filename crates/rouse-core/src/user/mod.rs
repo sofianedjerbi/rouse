@@ -22,6 +22,7 @@ pub struct User {
     slack_id: Option<String>,
     discord_id: Option<String>,
     telegram_id: Option<String>,
+    whatsapp_id: Option<String>,
     phone: Option<Phone>,
     role: Role,
 }
@@ -35,6 +36,7 @@ impl User {
             slack_id: None,
             discord_id: None,
             telegram_id: None,
+            whatsapp_id: None,
             phone: None,
             role,
         }
@@ -45,6 +47,7 @@ impl User {
             || self.slack_id.is_some()
             || self.discord_id.is_some()
             || self.telegram_id.is_some()
+            || self.whatsapp_id.is_some()
     }
 
     pub fn set_phone(&mut self, phone: Phone) {
@@ -61,6 +64,10 @@ impl User {
 
     pub fn set_telegram_id(&mut self, id: String) {
         self.telegram_id = Some(id);
+    }
+
+    pub fn set_whatsapp_id(&mut self, id: String) {
+        self.whatsapp_id = Some(id);
     }
 
     pub fn id(&self) -> &UserId {
@@ -131,6 +138,13 @@ mod tests {
     fn user_can_be_on_call_with_slack() {
         let mut user = User::new("alice".into(), "alice@test.com".into(), Role::User);
         user.set_slack_id("U12345".into());
+        assert!(user.can_be_on_call());
+    }
+
+    #[test]
+    fn user_can_be_on_call_with_whatsapp() {
+        let mut user = User::new("alice".into(), "alice@test.com".into(), Role::User);
+        user.set_whatsapp_id("+41791234567".into());
         assert!(user.can_be_on_call());
     }
 

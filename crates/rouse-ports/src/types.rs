@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -7,8 +7,6 @@ use rouse_core::alert::Severity;
 use rouse_core::alert::Status;
 use rouse_core::channel::Channel;
 use rouse_core::ids::{AlertId, PolicyId};
-
-use std::collections::HashMap;
 
 /// Raw alert data from an external source, before domain validation.
 #[derive(Debug, Clone)]
